@@ -5,36 +5,31 @@ require_once '../auth.php';
 init('../database/database.db');
 
 $error_message = '';
+$success_message = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = $_POST['username'];
     $password = $_POST['password'];
+    $retype_password = $_POST['retype_password'];
+    $group = $_POST['group'];
 
-    if (loginUser($username, $password)) {
-        $userId = $_SESSION['user_id'];
-        $group = getUserPrimaryGroup($userId);
-
-        switch ($group) {
-            case 'Admin':
-                header('Location: admin_dashboard.php');
-                break;
-            case 'Employee':
-                header('Location: employee_dashboard.php');
-                break;
-            default:
-                header('Location: access_denied.php');
-                break;
-        }
-        exit();
+    if (empty($username) || empty($password) || empty($retype_password) || empty($group)) {
+        $error_message = 'All fields are required.';
+    } else if ($password !== $retype_password) {
+        $error_message = 'Passwords do not match.';
     } else {
-        $error_message = 'Invalid username or password.';
+        if (createUser($username, $password, $group)) {
+            $success_message = 'Registration successful. You can now <a href="login.php">login</a>.';
+        } else {
+            $error_message = 'Username already exists.';
+        }
     }
 }
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Login</title>
+    <title>Register</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -46,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin: 0;
         }
 
-        .login-container {
+        .register-container {
             background-color: #fff;
             padding: 30px;
             border-radius: 8px;
@@ -55,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             text-align: center;
         }
 
-        .login-form h2 {
+        .register-form h2 {
             margin-bottom: 20px;
             color: #333;
         }
@@ -73,7 +68,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .input-group input[type="text"],
-        .input-group input[type="password"] {
+        .input-group input[type="password"],
+        .input-group select {
             width: calc(100% - 20px); /* Account for padding */
             padding: 10px;
             border: 1px solid #ddd;
@@ -117,14 +113,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: red;
             margin-bottom: 15px;
         }
+
+        .success {
+            color: green;
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <form class="login-form" action="login.php" method="post">
-            <h2>Login</h2>
+    <div class="register-container">
+        <form class="register-form" action="register.php" method="post">
+            <h2>Register</h2>
             <?php if ($error_message): ?>
                 <p class="error"><?php echo $error_message; ?></p>
+            <?php endif; ?>
+            <?php if ($success_message): ?>
+                <p class="success"><?php echo $success_message; ?></p>
             <?php endif; ?>
             <div class="input-group">
                 <label for="username">Username</label>
@@ -135,12 +139,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="password" id="password" name="password" placeholder="Enter your password" required>
             </div>
             <div class="input-group">
+                <label for="retype_password">Retype Password</label>
+                <input type="password" id="retype_password" name="retype_password" placeholder="Retype your password" required>
+            </div>
+            <div class="input-group">
                 <input type="checkbox" onclick="togglePasswordVisibility()"> Show Password
             </div>
-            <button type="submit">Login</button>
+            <div class="input-group">
+                <label for="group">Group</label>
+                <select id="group" name="group" required>
+                    <option value="Employee">Employee</option>
+                    <option value="Admin">Admin</option>
+                </select>
+            </div>
+            <button type="submit">Register</button>
             <div class="links">
-                <a href="#">Forgot Password?</a>
-                <a href="register.php">Sign Up</a>
+                <a href="login.php">Already have an account? Login</a>
             </div>
         </form>
     </div>
@@ -148,10 +162,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script>
         function togglePasswordVisibility() {
             var password = document.getElementById("password");
+            var retype_password = document.getElementById("retype_password");
             if (password.type === "password") {
                 password.type = "text";
+                retype_password.type = "text";
             } else {
                 password.type = "password";
+                retype_password.type = "password";
             }
         }
     </script>

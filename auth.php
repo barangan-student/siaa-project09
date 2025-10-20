@@ -201,4 +201,36 @@ function isUserInGroup($userId, $group) {
     $stmt->execute([$userId, $group]);
     return $stmt->fetchColumn() > 0;
 }
+
+/**
+ * Creates a new user.
+ *
+ * @param string $username The username of the new user.
+ * @param string $password The password of the new user.
+ * @param string $group The group to assign the new user to.
+ * @return bool True if the user was created successfully, false otherwise.
+ */
+function createUser($username, $password, $group) {
+    $db = getDBConnection();
+    $stmt = $db->prepare("SELECT id FROM users WHERE username = ?");
+    $stmt->execute([$username]);
+    if ($stmt->fetchColumn()) {
+        return false; // User already exists
+    }
+
+    $stmt = $db->prepare("INSERT INTO users (username, password) VALUES (?, ?)");
+    $stmt->execute([$username, password_hash($password, PASSWORD_DEFAULT)]);
+    $user_id = $db->lastInsertId();
+
+    $stmt = $db->prepare("SELECT id FROM groups WHERE name = ?");
+    $stmt->execute([$group]);
+    $group_id = $stmt->fetchColumn();
+
+    if ($group_id) {
+        $stmt = $db->prepare("INSERT INTO user_groups (user_id, group_id) VALUES (?, ?)");
+        $stmt->execute([$user_id, $group_id]);
+    }
+
+    return true;
+}
 ?>
